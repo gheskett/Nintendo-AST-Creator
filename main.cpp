@@ -4,7 +4,7 @@
  * This is a command line tool intended to convert audio into a lossless encoding of the Nintendo AST format seen in games such as Super Mario Galaxy and Mario Kart: Double Dash.
  * The resulting audio file is also compatible with lossy interpretations of AST as seen in The Legend of Zelda: Twilight Princess.
  *
- * v1.0 Released 8/16/17
+ * v1.1 Released 8/18/17
  *
  */
 
@@ -19,7 +19,7 @@
  *	-n                                         (disables looping)
  *	-e [loop end sample / total samples]       (default: number of samples in source file)
  *	-f [loop end in microseconds / total time]
- *	-r [sample rate]                           (default: same as source file)
+ *	-r [sample rate]                           (default: same as source file / Argument intended to change speed of audio rather than size)
  *	-h                                         (shows help text)
  *
  * Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output file names do not contain Unicode characters.
@@ -41,7 +41,7 @@ char *help = "\nUsage: ASTCreate.exe <input file> [optional arguments]\n\nOPTION
 	"	-n                                         (disables looping)\n"
 	"	-e [loop end sample / total samples]       (default: number of samples in source file)\n"
 	"	-f [loop end in microseconds / total time]\n"
-	"	-r [sample rate]                           (default: same as source file)\n"
+	"	-r [sample rate]                           (default: same as source file / Argument intended to change speed of audio rather than size)\n"
 	"	-h                                         (shows help text)\n\n"
 	"Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output file names do not contain Unicode characters.\n\n";
 
@@ -227,7 +227,7 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 			this->numSamples = (unsigned int) samples;
 		this->wavSize = this->numSamples * 2 * this->numChannels;
 		break;
-	case 'r': // Sets custom sample rate (does not affect loop times entered)
+	case 'r': // Sets custom sample rate (does not affect loop times entered, but does intentionally affect playback speed)
 		this->customSampleRate = atoi(c2);
 		if (this->customSampleRate == 0)
 			this->customSampleRate = this->sampleRate;
@@ -262,10 +262,8 @@ int ASTInfo::getWAVData(FILE *sourceWAV) {
 	unsigned short PCM;
 	fseek(sourceWAV, 20, SEEK_SET);
 	fread(&PCM, 2, 1, sourceWAV);
-	if (PCM != 1 && PCM != 65534) {
-		printf("ERROR: Source WAV file does not use PCM!  Please use a file encoded using 16-bit PCM.\n");
-		return 1;
-	}
+	if (PCM != 1 && PCM != 65534)
+		printf("CRITICAL WARNING: Source WAV file may not use PCM!\n");
 
 	// Ensures source file uses anywhere between 1 and 16 channels total
 	fread(&this->numChannels, 2, 1, sourceWAV);
@@ -286,19 +284,20 @@ int ASTInfo::getWAVData(FILE *sourceWAV) {
 		return 1;
 	}
 
-	// Searches for data chunk
+	// Searches for data chunk; gives up if not found after parsing through 4 kB worth of information
 	char data[5];
 	bool isData = true;
-	for (int x = 0; x < 64; x++) {
+	for (int x = 1; x < 4097; x++) {
 		fread(&data, 4, 1, sourceWAV);
 		data[4] = '\0';
 		if (strcmp(_data, data) == 0)
 			break;
-		if (x == 63)
+		if (x == 4096)
 			isData = false;
+		fseek(sourceWAV, 36 + x, SEEK_SET);
 	}
 	if (!isData) {
-		printf("ERROR: No 'data' chunk could be found in WAV file.\n");
+		printf("ERROR: No 'data' chunk could be found in WAV file.  Either the source is invalid or contains way too many properties.\n");
 		return 1;
 	}
 
