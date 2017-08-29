@@ -1,10 +1,10 @@
 /**
  * Written by Gregory Heskett (gheskett)
  *
- * This is a command line tool intended to convert audio into a lossless encoding of the Nintendo AST format seen in games such as Super Mario Galaxy and Mario Kart: Double Dash.
+ * This is a command line tool intended to convert audio into a lossless encoding of the Nintendo AST format found in games such as Super Mario Galaxy and Mario Kart: Double Dash.
  * The resulting audio file is also compatible with lossy interpretations of AST as seen in The Legend of Zelda: Twilight Princess.
  *
- * v1.1 Released 8/18/17
+ * v1.2 Released 8/29/17
  *
  */
 
@@ -19,10 +19,14 @@
  *	-n                                         (disables looping)
  *	-e [loop end sample / total samples]       (default: number of samples in source file)
  *	-f [loop end in microseconds / total time]
- *	-r [sample rate]                           (default: same as source file / Argument intended to change speed of audio rather than size)
+ *	-r [sample rate]                           (default: same as source file / argument intended to change speed of audio rather than size)
  *	-h                                         (shows help text)
  *
- * Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output file names do not contain Unicode characters.
+ * USAGE EXAMPLES
+ *	ASTCreate.exe inputfile.wav -o outputfile.ast -s 158462 -e 7485124
+ *	ASTCreate.exe "use quotations if filename contains spaces.wav" -n -f 95000000
+ * 
+ * Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output filenames do not contain Unicode characters.
  *
  */
 
@@ -34,16 +38,19 @@
 using namespace std;
 
 // Stores help text
-char *help = "\nUsage: ASTCreate.exe <input file> [optional arguments]\n\nOPTIONAL ARGUMENTS\n"
+const char *help = "\nUsage: ASTCreate.exe <input file> [optional arguments]\n\nOPTIONAL ARGUMENTS\n"
 	"	-o [output file]                           (default: same as input minus extension)\n"
 	"	-s [loop start sample]                     (defaut: 0)\n"
 	"	-t [loop start in microseconds]            (ex: 30000000 would be the equivalent of 30 seconds, or 960000 samples with a sample rate of 32000 Hz)\n"
 	"	-n                                         (disables looping)\n"
 	"	-e [loop end sample / total samples]       (default: number of samples in source file)\n"
 	"	-f [loop end in microseconds / total time]\n"
-	"	-r [sample rate]                           (default: same as source file / Argument intended to change speed of audio rather than size)\n"
+	"	-r [sample rate]                           (default: same as source file / argument intended to change speed of audio rather than size)\n"
 	"	-h                                         (shows help text)\n\n"
-	"Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output file names do not contain Unicode characters.\n\n";
+	"USAGE EXAMPLES\n"
+	"	ASTCreate.exe inputfile.wav -o outputfile.ast -s 158462 -e 7485124\n"
+	"	ASTCreate.exe \"use quotations if filename contains spaces.wav\" -n -f 95000000\n\n"
+	"Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output filenames do not contain Unicode characters.\n\n";
 
 // Used to store essential AST and WAV data
 class ASTInfo {
@@ -97,7 +104,7 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 	
 	// Checks for input of more than one input file (via *)
 	if (this->filename.find("*") != -1) {
-		printf("ERROR: Program is only capable of opening a single input file at a time.  Please enter an exact file name (avoid using '*').\n%s", help);
+		printf("ERROR: Program is only capable of opening a single input file at a time.  Please enter an exact file name (avoid using '*').\n\n%s", help);
 		return 1;
 	}
 
@@ -107,22 +114,31 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 		if (this->filename.compare("-h") == 0 && argc == 2)
 			printf(help);
 		else
-			printf("ERROR: Cannot open file!\n%s", help);
+			printf("ERROR: Cannot find/open input file!\n\n%s", help);
 		return 1;
 	};
 
 	// Checks for file (extention) validity
 	string tmp = "";
+	int wavE = 4; // Allows extention .wave to slide by
 	if (strlen(this->filename.c_str()) >= 4)
 		tmp = this->filename.substr(this->filename.length() - 4, 4);
 	if (tmp.compare(".wav") != 0) {
-		printf("ERROR: Source file must be a WAV file!\n%s", help);
-		fclose(sourceWAV);
-		return 1;
+		if (strlen(this->filename.c_str()) >= 5)
+			tmp = this->filename.substr(this->filename.length() - 5, 5);
+		if (tmp.compare(".wave") != 0) { 
+			if (this->filename.find(".") != string::npos)
+				printf("ERROR: Source file must be a WAV file!\n\n%s", help);
+			else
+				printf("ERROR: Source file contains no extension!  The filename should be followed with \".wav\", assuming the source is indeed a WAV file.\n%s", help);
+			fclose(sourceWAV);
+			return 1;
+		}
+		wavE = 5;
 	}
 
 	// Changes .wav extension to .ast
-	this->filename = this->filename.substr(0, this->filename.length() - 4);
+	this->filename = this->filename.substr(0, this->filename.length() - wavE);
 	this->filename += ".ast";
 
 	int exit = this->getWAVData(sourceWAV); // Grabs WAV header info
@@ -241,26 +257,48 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 // Grabs and stores important WAV header info
 int ASTInfo::getWAVData(FILE *sourceWAV) {
 	const char _riff[] = "RIFF";
-	const char _wavefmt[] = "WAVEfmt ";
+	const char _wavefmt[] = "WAVE";
 	const char _data[] = "data";
+	const char _fmt[] = "fmt ";
 
 	// Checks for use of RIFF WAV file
 	char riff[5];
-	char wavefmt[9];
+	char wavefmt[5];
 	fseek(sourceWAV, 0, SEEK_SET);
 	fread(&riff, 4, 1, sourceWAV);
 	fseek(sourceWAV, 8, SEEK_SET);
-	fread(&wavefmt, 8, 1, sourceWAV);
+	fread(&wavefmt, 4, 1, sourceWAV);
 	riff[4] = '\0';
-	wavefmt[8] = '\0';
+	wavefmt[4] = '\0';
 	if (strcmp(_riff, riff) != 0 || strcmp(_wavefmt, wavefmt) != 0) {
 		printf("ERROR: Header contents of WAV are invalid or corrupted.  Please be sure your input file is a RIFF WAV audio file.\n");
 		return 1;
 	}
 
+	// Stores size of chunks
+	unsigned int chunkSZ;
+
+	// Searches for fmt chunk
+	char fmt[5];
+	bool isFmt = false;
+	while (fread(&fmt, 4, 1, sourceWAV) == 1) {
+		fmt[4] = '\0';
+		if (strcmp(_fmt, fmt) == 0) {
+			isFmt = true;
+			break;
+		}
+		if (fread(&chunkSZ, 4, 1, sourceWAV) != 1)
+			break;
+		fseek(sourceWAV, chunkSZ, SEEK_CUR);
+	}
+	if (!isFmt) {
+		printf("ERROR: No 'fmt' chunk could be found in WAV file.  The source file is likely corrupted.\n");
+		return 1;
+	}
+
 	// Checks for use of PCM
 	unsigned short PCM;
-	fseek(sourceWAV, 20, SEEK_SET);
+	fseek(sourceWAV, 4, SEEK_CUR);
 	fread(&PCM, 2, 1, sourceWAV);
 	if (PCM != 1 && PCM != 65534)
 		printf("CRITICAL WARNING: Source WAV file may not use PCM!\n");
@@ -277,27 +315,29 @@ int ASTInfo::getWAVData(FILE *sourceWAV) {
 	
 	// Checks to see if bit rate is 16 bits per sample
 	short bitrate;
-	fseek(sourceWAV, 34, SEEK_SET);
+	fseek(sourceWAV, 6, SEEK_CUR);
 	fread(&bitrate, 2, 1, sourceWAV);
 	if (bitrate != 16) {
 		printf("ERROR: Invalid bit rate!  Please make sure you are using 16-bit PCM.\n");
 		return 1;
 	}
 
-	// Searches for data chunk; gives up if not found after parsing through 4 kB worth of information
+	// Searches for data chunk
 	char data[5];
-	bool isData = true;
-	for (int x = 1; x < 4097; x++) {
-		fread(&data, 4, 1, sourceWAV);
+	bool isData = false;
+	fseek(sourceWAV, 12, SEEK_SET);
+	while (fread(&data, 4, 1, sourceWAV) == 1) {
 		data[4] = '\0';
-		if (strcmp(_data, data) == 0)
+		if (strcmp(_data, data) == 0) {
+			isData = true;
 			break;
-		if (x == 4096)
-			isData = false;
-		fseek(sourceWAV, 36 + x, SEEK_SET);
+		}
+		if (fread(&chunkSZ, 4, 1, sourceWAV) != 1)
+			break;
+		fseek(sourceWAV, chunkSZ, SEEK_CUR);
 	}
 	if (!isData) {
-		printf("ERROR: No 'data' chunk could be found in WAV file.  Either the source is invalid or contains way too many properties.\n");
+		printf("ERROR: No 'data' chunk could be found in WAV file.  Either the source contains no audio or is corrupted.\n");
 		return 1;
 	}
 
@@ -329,7 +369,7 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 	if (_strcmpi(tmp.c_str(), ".ast") != 0)
 		this->filename += ".ast";
 	if (_strcmpi(this->filename.c_str(), ".ast") == 0) {
-		printf("ERROR: Output file name can not be restricted exclusively to .ast extension!\n%s", help);
+		printf("ERROR: Output filename can not be restricted exclusively to .ast extension!\n\n%s", help);
 		return 1;
 	}
 
@@ -361,15 +401,15 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 	}
 
 	// Prints AST information to user
-	string loopStatus = "Yes";
-	if (this->isLooped != 65535) {
-		loopStatus = "No";
+	string loopStatus = "true";
+	if (this->isLooped == 0) {
+		loopStatus = "false";
 		this->loopStart = 0;
 	}
-	printf("File opened successfully!\n\n	AST file size: %d bytes\n	Sample rate: %d Hz\n	Looped?: %s\n", this->astSize + 64, this->customSampleRate, loopStatus.c_str());
+	printf("File opened successfully!\n\n	AST file size: %d bytes\n	Sample rate: %d Hz\n	Is looped: %s\n", this->astSize + 64, this->customSampleRate, loopStatus.c_str());
 	if (this->isLooped == 65535)
 		printf("	Starting loop point: %d samples\n", this->loopStart);
-	printf("	End of stream: %d samples\n	Number of Channels: %d", this->numSamples, this->numChannels);
+	printf("	End of stream: %d samples\n	Number of channels: %d", this->numSamples, this->numChannels);
 	if (this->numChannels == 1)
 		printf(" (mono)");
 	else if (this->numChannels == 2)
@@ -428,7 +468,7 @@ void ASTInfo::printHeader(FILE *outputAST) {
 	fourByteInt = 127;
 	fwrite(&fourByteInt, sizeof(fourByteInt), 1, outputAST);
 	fourByteInt = 0;
-	for (int x = 0; x < 5; x++)
+	for (int x = 0; x < 5; ++x)
 		fwrite(&fourByteInt, sizeof(fourByteInt), 1, outputAST);
 
 	return;
@@ -446,29 +486,29 @@ void ASTInfo::printAudio(FILE *sourceWAV, FILE *outputAST) {
 
 	length *= this->numChannels; // Changes length from block size to audio size
 
-	for (unsigned int x = 0; x < numBlocks; x++) {
+	for (unsigned int x = 0; x < numBlocks; ++x) {
 
 		// Writes block header
 		fprintf(outputAST, "BLCK"); // Writes "BLCK" at 0x0000 index of block
 
-		// Adds padding to padded length during the last block
+		// Adds padding to paddedLength during the last block
 		if (x == this->numBlocks - 1) {
-			memset(block, 0, this->blockSize * this->numChannels); // Clears old audio data stored in block array
+			memset(block, 0, this->blockSize * this->numChannels); // Clears old audio data stored in block array (possibly unnecessary)
 			paddedLength = (this->excBlkSz + this->padding);
 			length = (this->excBlkSz) * this->numChannels;
 			paddedLength = _byteswap_ulong(paddedLength);
 		}
 
 		fwrite(&paddedLength, sizeof(paddedLength), 1, outputAST); // writes block size at 0x0004 index of block
-		for (unsigned int y = 0; y < 6; y++)
+		for (unsigned int y = 0; y < 6; ++y)
 			fwrite(&headerPad, sizeof(headerPad), 1, outputAST); // writes 24 bytes worth of 0s at 0x0008 index of block
 
 		fread(&block[0], length, 1, sourceWAV); // reads one block worth of data from source WAV file
 
-		for (unsigned int y = 0; y < length / 2; y++) // converts endianness to Big Endian
+		for (unsigned int y = 0; y < length / 2; ++y) // converts endianness to Big Endian
 			block[y] = _byteswap_ushort(block[y]);
 
-		for (unsigned int y = 0; y < this->numChannels; y++) {
+		for (unsigned int y = 0; y < this->numChannels; ++y) {
 			unsigned int z = y;
 			for (z; z < length / 2; z += offset) // Prints out audio data in channel order
 				fwrite(&block[z], sizeof(uint16_t), 1, outputAST);
