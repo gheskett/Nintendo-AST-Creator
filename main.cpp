@@ -462,10 +462,10 @@ void ASTInfo::printHeader(FILE *outputAST) {
 	}
 	fwrite(&fourByteInt, sizeof(fourByteInt), 1, outputAST);
 
-	// Fills in last 28 bytes with all 0s (except for 0x0028, which has a hex of 0x7E)
+	// Fills in last 28 bytes with all 0s (except for 0x0028, which has a hex of 0x7F)
 	fourByteInt = 0;
 	fwrite(&fourByteInt, sizeof(fourByteInt), 1, outputAST);
-	fourByteInt = 127;
+	fourByteInt = 127; // Likely denotes playback volume of AST (always set to 127, or 0x7F)
 	fwrite(&fourByteInt, sizeof(fourByteInt), 1, outputAST);
 	fourByteInt = 0;
 	for (int x = 0; x < 5; ++x)
