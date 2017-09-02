@@ -191,6 +191,7 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 	uint64_t time;
 	long double rounded;
 	uint64_t samples;
+	string c2str;
 
 	char value = c1[1];
 	switch (value) {
@@ -199,8 +200,13 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 	case 'n': // Disables looping
 		this->isLooped = 0;
 		break;
-	case 'o': // Changes name of output file
-		this->filename = c2;
+	case 'o': // Changes name of output file (if given valid filename)
+		c2str = c2;
+		if (c2str.find("\\") != string::npos || c2str.find("/") != string::npos || c2str.find("*") != string::npos || c2str.find(":") != string::npos || c2str.find("?") != string::npos
+			|| c2str.find("\"") != string::npos || c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos)
+			printf("WARNING: Output filename \"%s\" contains illegal characters.  Output argument will be ignored.\n", c2);
+		else
+			this->filename = c2;
 		break;
 	case 's': // Sets starting loop point
 		this->loopStart = atoi(c2);
