@@ -34,6 +34,8 @@
 #include "stdafx.h"
 #include <string>
 #include <intrin.h>
+#include <stdio.h>
+#include <windows.h>
 
 using namespace std;
 
@@ -188,6 +190,7 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 // Parses through user arguments and overrides default settings
 int ASTInfo::assignValue(char *c1, char *c2) {
 
+	int slash, colon;
 	uint64_t time;
 	long double rounded;
 	uint64_t samples;
@@ -202,11 +205,20 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 		break;
 	case 'o': // Changes name of output file (if given valid filename)
 		c2str = c2;
-		if (c2str.find("\\") != string::npos || c2str.find("/") != string::npos || c2str.find("*") != string::npos || c2str.find(":") != string::npos || c2str.find("?") != string::npos
-			|| c2str.find("\"") != string::npos || c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos)
+		slash = c2str.find_last_of("/\\");
+		if (c2str.find_last_of("/\\") == string::npos)
+			slash = -1;
+		colon = c2str.find_last_of(":");
+		if (c2str.find_last_of(":") == string::npos)
+			colon = -1;
+
+		if (c2str.find("*") != string::npos || c2str.find("?") != string::npos || c2str.find("\"") != string::npos || colon > slash
+		  || c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos) {
 			printf("WARNING: Output filename \"%s\" contains illegal characters.  Output argument will be ignored.\n", c2);
-		else
+		}
+		else {
 			this->filename = c2;
+		}
 		break;
 	case 's': // Sets starting loop point
 		this->loopStart = atoi(c2);
@@ -397,6 +409,11 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 	if (this->customSampleRate == 0) {
 		printf("ERROR: Source file has a sample rate of 0 Hz!\n");
 		return 1;
+	}
+
+	if (this->filename.find("\\") != string::npos || this->filename.find("/") != string::npos) {
+		int size = this->filename.find_last_of("/\\");
+		CreateDirectory(this->filename.substr(0, size+1).c_str(), NULL);
 	}
 
 	// Creates AST file
