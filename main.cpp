@@ -203,7 +203,7 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 	case 'n': // Disables looping
 		this->isLooped = 0;
 		break;
-	case 'o': // Changes name of output file (if given valid filename)
+	case 'o': // Changes name of output file (if given legal filename)
 		c2str = c2;
 		slash = c2str.find_last_of("/\\");
 		if (c2str.find_last_of("/\\") == string::npos)
@@ -214,7 +214,7 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 
 		if (c2str.find("*") != string::npos || c2str.find("?") != string::npos || c2str.find("\"") != string::npos || colon > slash
 		  || c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos) {
-			printf("WARNING: Output filename \"%s\" contains illegal characters.  Output argument will be ignored.\n", c2);
+			printf("WARNING: Output filename \"%s\" contains illegal format/characters.  Output argument will be ignored.\n", c2);
 		}
 		else {
 			this->filename = c2;
@@ -411,6 +411,7 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 		return 1;
 	}
 
+	// Creates directory if needed
 	if (this->filename.find("\\") != string::npos || this->filename.find("/") != string::npos) {
 		int size = this->filename.find_last_of("/\\");
 		CreateDirectory(this->filename.substr(0, size+1).c_str(), NULL);
