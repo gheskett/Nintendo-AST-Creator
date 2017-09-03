@@ -4,7 +4,7 @@
  * This is a command line tool intended to convert audio into a lossless encoding of the Nintendo AST format found in games such as Super Mario Galaxy and Mario Kart: Double Dash.
  * The resulting audio file is also compatible with lossy interpretations of AST as seen in The Legend of Zelda: Twilight Princess.
  *
- * v1.2 Released 8/29/17
+ * v1.3 Released 9/3/17
  *
  */
 
@@ -164,10 +164,9 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 			else {
 				exit = assignValue(argv[count], argv[count + 1]);
 			}
-			if (argv[count][1] != 'n' && argv[count][1] != 'h') {
+			if (argv[count][1] != 'n' && argv[count][1] != 'h')
 				count++;
-			}
-			if (argv[count][1] == 'h')
+			else if (argv[count][1] == 'h')
 				helpState = true;
 		}
 		else {
@@ -213,11 +212,17 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 			colon = -1;
 
 		if (c2str.find("*") != string::npos || c2str.find("?") != string::npos || c2str.find("\"") != string::npos || colon > slash
-		  || c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos) {
+			|| c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos) {
 			printf("WARNING: Output filename \"%s\" contains illegal format/characters.  Output argument will be ignored.\n", c2);
 		}
 		else {
-			this->filename = c2;
+			if (c2str.find_last_of("/\\") + 1 == c2str.length()) {
+				if (this->filename.find_last_of("/\\") != string::npos)
+					c2str += this->filename.substr(this->filename.find_last_of("/\\") + 1, this->filename.length());
+				else
+					c2str += this->filename;
+			}
+			this->filename = c2str;
 		}
 		break;
 	case 's': // Sets starting loop point
@@ -430,10 +435,14 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 		loopStatus = "false";
 		this->loopStart = 0;
 	}
+
+	unsigned long int startTime = (unsigned long int) ((long double) this->loopStart / (long double) this->customSampleRate * 1000000.0 + 0.5);
+	unsigned long int endTime = (unsigned long int) ((long double) this->numSamples / (long double) this->customSampleRate * 1000000.0 + 0.5);
+
 	printf("File opened successfully!\n\n	AST file size: %d bytes\n	Sample rate: %d Hz\n	Is looped: %s\n", this->astSize + 64, this->customSampleRate, loopStatus.c_str());
 	if (this->isLooped == 65535)
-		printf("	Starting loop point: %d samples\n", this->loopStart);
-	printf("	End of stream: %d samples\n	Number of channels: %d", this->numSamples, this->numChannels);
+		printf("	Starting loop point: %d samples (time: %d:%02d.%06d)\n", this->loopStart, (int)(startTime / 60000000), (int)(startTime / 1000000) % 60, (int)(startTime % 1000000));
+	printf("	End of stream: %d samples (time: %d:%02d.%06d)\n	Number of channels: %d", this->numSamples, (int)(endTime / 60000000), (int)(endTime / 1000000) % 60, (int)(endTime % 1000000), this->numChannels);
 	if (this->numChannels == 1)
 		printf(" (mono)");
 	else if (this->numChannels == 2)
