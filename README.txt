@@ -4,7 +4,7 @@ Usage: ASTCreate.exe <input file> [optional arguments]
 
 OPTIONAL ARGUMENTS
 	-o [output file]                           (default: same as input minus extension)
-	-s [loop start sample]                     (defaut: 0)
+	-s [loop start sample]                     (default: 0)
 	-t [loop start in microseconds]            (ex: 30000000 would be the equivalent of 30 seconds, or 960000 samples with a sample rate of 32000 Hz)
 	-n                                         (disables looping)
 	-e [loop end sample / total samples]       (default: number of samples in source file)

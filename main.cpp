@@ -14,7 +14,7 @@
  *
  * OPTIONAL ARGUMENTS
  *	-o [output file]                           (default: same as input minus extension)
- *	-s [loop start sample]                     (defaut: 0)
+ *	-s [loop start sample]                     (default: 0)
  *	-t [loop start in microseconds]            (ex: 30000000 would be the equivalent of 30 seconds, or 960000 samples with a sample rate of 32000 Hz)
  *	-n                                         (disables looping)
  *	-e [loop end sample / total samples]       (default: number of samples in source file)
@@ -42,7 +42,7 @@ using namespace std;
 // Stores help text
 const char *help = "\nUsage: ASTCreate.exe <input file> [optional arguments]\n\nOPTIONAL ARGUMENTS\n"
 	"	-o [output file]                           (default: same as input minus extension)\n"
-	"	-s [loop start sample]                     (defaut: 0)\n"
+	"	-s [loop start sample]                     (default: 0)\n"
 	"	-t [loop start in microseconds]            (ex: 30000000 would be the equivalent of 30 seconds, or 960000 samples with a sample rate of 32000 Hz)\n"
 	"	-n                                         (disables looping)\n"
 	"	-e [loop end sample / total samples]       (default: number of samples in source file)\n"
@@ -212,7 +212,7 @@ int ASTInfo::assignValue(char *c1, char *c2) {
 			colon = -1;
 
 		if (c2str.find("*") != string::npos || c2str.find("?") != string::npos || c2str.find("\"") != string::npos || colon > slash
-			|| c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos) {
+		  || c2str.find("<") != string::npos || c2str.find(">") != string::npos || c2str.find("|") != string::npos) {
 			printf("WARNING: Output filename \"%s\" contains illegal format/characters.  Output argument will be ignored.\n", c2);
 		}
 		else {
