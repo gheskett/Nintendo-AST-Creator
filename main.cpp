@@ -332,7 +332,7 @@ int ASTInfo::getWAVData(FILE *sourceWAV) {
 		fseek(sourceWAV, chunkSZ, SEEK_CUR);
 	}
 	if (!isFmt) {
-		printf("ERROR: No 'fmt' chunk could be found in WAV file.  The source file is likely corrupted.\n");
+		printf("ERROR: No 'fmt ' chunk could be found in WAV file.  The source file is likely corrupted.\n");
 		return 1;
 	}
 
@@ -400,6 +400,12 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 	if (this->padding == 32)
 		this->padding = 0;
 
+	// Ensures resulting file size isn't too large
+	if ((uint64_t) wavSize + (uint64_t) (this->numBlocks * 32) + (uint64_t) (this->padding * this->numChannels) >= 4294967232) {
+		printf("ERROR: Input file is too large!");
+		return 1;
+	}
+
 	this->astSize = wavSize + (this->numBlocks * 32) + (this->padding * this->numChannels); // Stores size of AST
 
 	// Ensures output file extension is .ast
@@ -453,8 +459,8 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 		this->loopStart = 0;
 	}
 
-	unsigned long int startTime = (unsigned long int) ((long double) this->loopStart / (long double) this->customSampleRate * 1000000.0 + 0.5);
-	unsigned long int endTime = (unsigned long int) ((long double) this->numSamples / (long double) this->customSampleRate * 1000000.0 + 0.5);
+	uint64_t startTime = (uint64_t) ((long double) this->loopStart / (long double) this->customSampleRate * 1000000.0 + 0.5);
+	uint64_t endTime = (uint64_t) ((long double) this->numSamples / (long double) this->customSampleRate * 1000000.0 + 0.5);
 
 	printf("File opened successfully!\n\n	AST file size: %d bytes\n	Sample rate: %d Hz\n	Is looped: %s\n", this->astSize + 64, this->customSampleRate, loopStatus.c_str());
 	if (this->isLooped == 65535)
