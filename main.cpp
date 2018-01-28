@@ -39,20 +39,9 @@
 
 using namespace std;
 
-// Stores help text
-const char *help = "\nUsage: ASTCreate.exe <input file> [optional arguments]\n\nOPTIONAL ARGUMENTS\n"
-	"	-o [output file]                           (default: same as input minus extension)\n"
-	"	-s [loop start sample]                     (default: 0)\n"
-	"	-t [loop start in microseconds]            (ex: 30000000 would be the equivalent of 30 seconds, or 960000 samples with a sample rate of 32000 Hz)\n"
-	"	-n                                         (disables looping)\n"
-	"	-e [loop end sample / total samples]       (default: number of samples in source file)\n"
-	"	-f [loop end in microseconds / total time]\n"
-	"	-r [sample rate]                           (default: same as source file / argument intended to change speed of audio rather than size)\n"
-	"	-h                                         (shows help text)\n\n"
-	"USAGE EXAMPLES\n"
-	"	ASTCreate.exe inputfile.wav -o outputfile.ast -s 158462 -e 7485124\n"
-	"	ASTCreate.exe \"use quotations if filename contains spaces.wav\" -n -f 95000000\n\n"
-	"Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output filenames do not contain Unicode characters.\n\n";
+string help; // Stores help text
+string shortFilename; // Shortened filename used with help text
+void defineHelp(char*); // Sets help text
 
 // Used to store essential AST and WAV data
 class ASTInfo {
@@ -84,9 +73,14 @@ public:
 // Main method
 int main(int argc, char **argv)
 {
+	if (argc < 1)
+		return 1;
+
+	defineHelp(argv[0]);
+
 	// Displays an error if there are not at least two arguments provided
 	if (argc < 2) {
-		printf(help);
+		printf(help.c_str());
 		return 1;
 	}
 
@@ -100,13 +94,36 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+// Sets help text
+void defineHelp(char *arg) {
+	string str = arg;
+	str = str.substr(str.find_last_of("\\/") + 1);
+
+	string s1 = "\nUsage: ";
+	string s2 = " <input file> [optional arguments]\n\nOPTIONAL ARGUMENTS\n"
+		"	-o [output file]                           (default: same as input minus extension)\n"
+		"	-s [loop start sample]                     (default: 0)\n"
+		"	-t [loop start in microseconds]            (ex: 30000000 would be the equivalent of 30 seconds, or 960000 samples with a sample rate of 32000 Hz)\n"
+		"	-n                                         (disables looping)\n"
+		"	-e [loop end sample / total samples]       (default: number of samples in source file)\n"
+		"	-f [loop end in microseconds / total time]\n"
+		"	-r [sample rate]                           (default: same as source file / argument intended to change speed of audio rather than size)\n"
+		"	-h                                         (shows help text)\n\n"
+		"USAGE EXAMPLES\n	";
+	string s3 = " inputfile.wav -o outputfile.ast -s 158462 -e 7485124\n	";
+	string s4 = " \"use quotations if filename contains spaces.wav\" -n -f 95000000\n\n"
+		"Note: This program will only work with WAV files (.wav) encoded with 16-bit PCM.  If the source file is anything other than a WAV file, please make a separate conversion first.  Also please ensure the input/output filenames do not contain Unicode characters.\n\n";
+
+	help = s1 + str + s2 + str + s3 + str + s4;
+}
+
 // Retrieves header info from input WAV file, then later writes new AST file if no errors occur 
 int ASTInfo::grabInfo (int argc, char **argv) {
 	this->filename = argv[1];
 	
 	// Checks for input of more than one input file (via *)
 	if (this->filename.find("*") != -1) {
-		printf("ERROR: Program is only capable of opening a single input file at a time.  Please enter an exact file name (avoid using '*').\n\n%s", help);
+		printf("ERROR: Program is only capable of opening a single input file at a time.  Please enter an exact file name (avoid using '*').\n\n%s", help.c_str());
 		return 1;
 	}
 
@@ -114,9 +131,9 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 	FILE *sourceWAV = fopen(this->filename.c_str(), "rb");
 	if (!sourceWAV) {
 		if (this->filename.compare("-h") == 0 && argc == 2)
-			printf(help);
+			printf(help.c_str());
 		else
-			printf("ERROR: Cannot find/open input file!\n\n%s", help);
+			printf("ERROR: Cannot find/open input file!\n\n%s", help.c_str());
 		return 1;
 	};
 
@@ -130,9 +147,9 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 			tmp = this->filename.substr(this->filename.length() - 5, 5);
 		if (tmp.compare(".wave") != 0) { 
 			if (this->filename.find(".") != string::npos)
-				printf("ERROR: Source file must be a WAV file!\n\n%s", help);
+				printf("ERROR: Source file must be a WAV file!\n\n%s", help.c_str());
 			else
-				printf("ERROR: Source file contains no extension!  The filename should be followed with \".wav\", assuming the source is indeed a WAV file.\n%s", help);
+				printf("ERROR: Source file contains no extension!  The filename should be followed with \".wav\", assuming the source is indeed a WAV file.\n%s", help.c_str());
 			fclose(sourceWAV);
 			return 1;
 		}
@@ -152,7 +169,7 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 	for (int count = 2; count < argc; count++) {
 		if (argv[count][0] == '-') {
 			if (strlen(argv[count]) != 2) { // Ensures arguments are two characters
-				printf(help);
+				printf(help.c_str());
 				return 1;
 			}
 			if (argc - 1 == count) {
@@ -173,12 +190,12 @@ int ASTInfo::grabInfo (int argc, char **argv) {
 			exit = 1;
 		}
 		if (exit == 1) { // Exits the program if user arguments are invalid
-			printf(help);
+			printf(help.c_str());
 			return 1;
 		}
 	}
 	if (helpState == true) // Prints help text if prompted
-		printf(help);
+		printf(help.c_str());
 
 	exit = this->writeAST(sourceWAV);
 	fclose(sourceWAV);
@@ -392,7 +409,7 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 	if (_strcmpi(tmp.c_str(), ".ast") != 0)
 		this->filename += ".ast";
 	if (_strcmpi(this->filename.c_str(), ".ast") == 0) {
-		printf("ERROR: Output filename can not be restricted exclusively to .ast extension!\n\n%s", help);
+		printf("ERROR: Output filename can not be restricted exclusively to .ast extension!\n\n%s", help.c_str());
 		return 1;
 	}
 
@@ -461,7 +478,7 @@ int ASTInfo::writeAST(FILE *sourceWAV)
 
 // Writes AST header to output file (and swaps endianness)
 void ASTInfo::printHeader(FILE *outputAST) {
-	fprintf(outputAST, "STRM"); // Prints "STRM" at 0x0000
+	fwrite("STRM", 4*sizeof(char), 1, outputAST); // Prints "STRM" at 0x0000
 
 	uint32_t fourByteInt = _byteswap_ulong(this->astSize); // Prints total size of all future AST block chunks (file size - 64) at 0x0004
 	fwrite(&fourByteInt, sizeof(fourByteInt), 1, outputAST);
@@ -514,15 +531,18 @@ void ASTInfo::printAudio(FILE *sourceWAV, FILE *outputAST) {
 	const uint16_t zeroPad = 0; // Contains the hex of 0x0000 used for padding
 	unsigned short offset = this->numChannels; // Stores an offset used in for loops to compensate with variable channels
 
-	uint16_t *block = (uint16_t*) malloc(this->blockSize * this->numChannels);
-	const unsigned int headerPad = 0; // Contains the hex of 0x00000000 used for padding in header
+	uint16_t *block = (uint16_t*) malloc(this->blockSize * this->numChannels); // Used to read and store audio data from the original file
+	uint16_t *printBlock = (uint16_t*) malloc(this->blockSize * this->numChannels); // Stores all finalized audio data being printed to AST file
+	const uint64_t headerPad[] = { 0, 0, 0 }; // Used for padding in header
 
 	length *= this->numChannels; // Changes length from block size to audio size
 
 	for (unsigned int x = 0; x < numBlocks; ++x) {
 
+		unsigned int blockIndex = 0; // Used for indexing the location of data in the printBlock array
+
 		// Writes block header
-		fprintf(outputAST, "BLCK"); // Writes "BLCK" at 0x0000 index of block
+		fwrite("BLCK", 4*sizeof(char), 1, outputAST); // Writes "BLCK" at 0x0000 index of block
 
 		// Adds padding to paddedLength during the last block
 		if (x == this->numBlocks - 1) {
@@ -532,25 +552,23 @@ void ASTInfo::printAudio(FILE *sourceWAV, FILE *outputAST) {
 			paddedLength = _byteswap_ulong(paddedLength);
 		}
 
-		fwrite(&paddedLength, sizeof(paddedLength), 1, outputAST); // writes block size at 0x0004 index of block
-		for (unsigned int y = 0; y < 6; ++y)
-			fwrite(&headerPad, sizeof(headerPad), 1, outputAST); // writes 24 bytes worth of 0s at 0x0008 index of block
+		fwrite(&paddedLength, sizeof(paddedLength), 1, outputAST); // Writes block size at 0x0004 index of block
+		fwrite(&headerPad[0], 3*sizeof(uint64_t), 1, outputAST); // Writes 24 bytes worth of 0s at 0x0008 index of block
 
-		fread(&block[0], length, 1, sourceWAV); // reads one block worth of data from source WAV file
-
-		for (unsigned int y = 0; y < length / 2; ++y) // converts endianness to Big Endian
-			block[y] = _byteswap_ushort(block[y]);
+		fread(&block[0], length, 1, sourceWAV); // Reads one block worth of data from source WAV file
 
 		for (unsigned int y = 0; y < this->numChannels; ++y) {
 			unsigned int z = y;
-			for (z; z < length / 2; z += offset) // Prints out audio data in channel order
-				fwrite(&block[z], sizeof(uint16_t), 1, outputAST);
+			for (z; z < length / 2; z += offset) // Rearranges audio data in channel order to printBlock and swaps endianness
+				printBlock[blockIndex++] = _byteswap_ushort(block[z]);
 
-			if (x == this->numBlocks - 1) { // Prints 32-byte padding at the end of the stream
+			if (x == this->numBlocks - 1) { // Adds 32-byte padding to the end of the stream
 				for (z = 0; z < padding; z += 2)
-					fwrite(&zeroPad, sizeof(uint16_t), 1, outputAST);
+					printBlock[blockIndex++] = 0;
 			}
 		}
+		fwrite(&printBlock[0], blockIndex*sizeof(uint16_t), 1, outputAST); // Writes processed audio data to output AST file
 	}
 	free(block);
+	free(printBlock);
 }
